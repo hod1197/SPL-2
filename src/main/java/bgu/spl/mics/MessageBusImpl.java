@@ -26,7 +26,7 @@ public class MessageBusImpl implements MessageBus {
     }
 
     // Constructor
-    public MessageBusImpl() {
+    private MessageBusImpl() {
         eventSubscribers = new ConcurrentHashMap<>();
         broadcastSubscribers = new ConcurrentHashMap<>();
         microServiceQueues = new HashMap<>();
