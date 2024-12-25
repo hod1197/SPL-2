@@ -1,6 +1,11 @@
 package bgu.spl.mics;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A Future object represents a promised result - an object that will
@@ -11,13 +16,16 @@ import java.util.concurrent.TimeUnit;
  * No public constructor is allowed except for the empty constructor.
  */
 public class Future<T> {
-	
+	private AtomicReference<T> result = new AtomicReference<>();
+    private AtomicBoolean isDone = new AtomicBoolean(false);
+
+    private final Lock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
+
 	/**
 	 * This should be the the only public constructor in this class.
 	 */
-	public Future() {
-		//TODO: implement this
-	}
+	public Future() {}
 	
 	/**
      * retrieves the result the Future object holds if it has been resolved.
@@ -28,23 +36,35 @@ public class Future<T> {
      * 	       
      */
 	public T get() {
-		//TODO: implement this.
-		return null;
+        if (!this.isDone()) {
+            try {
+                this.condition.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return this.result.get();
 	}
 	
 	/**
      * Resolves the result of this Future object.
      */
 	public void resolve (T result) {
-		//TODO: implement this.
+		if (this.isDone()) {
+			return; // Ignore if already resolved
+		}
+
+		this.result.set(result);
+		this.isDone.set(true);;
+		this.condition.signalAll();
 	}
 	
 	/**
      * @return true if this object has been resolved, false otherwise
      */
 	public boolean isDone() {
-		//TODO: implement this.
-		return false;
+		return this.isDone.get();
 	}
 	
 	/**
@@ -59,8 +79,16 @@ public class Future<T> {
      *         elapsed, return null.
      */
 	public T get(long timeout, TimeUnit unit) {
-		//TODO: implement this.
-		return null;
-	}
+        if (!this.isDone()) {
+            try {
+                if (!this.condition.await(timeout, unit)) {
+                    return null;
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
+        return this.result.get();
+	}
 }
